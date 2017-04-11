@@ -35,13 +35,13 @@ public class TeamController {
     @RequestMapping("/teams/{id}")
     Team getTeam(@PathVariable long id) throws InterruptedException {
         logger.info(MessageFormat.format("Fetching team with id {0}", id));
-        
+        doSomething();
         Team team = null;
         ICacheElement<Long, Team> pair = cache.getCacheElement(id);
         if (pair == null) {
             logger.info(MessageFormat.format("Item with id {0} not found in cache. Fetching from database", id));
+            doSomething();
             team = teamRepository.findOne(id);
-            Thread.sleep(1000);
             if (team != null) {
                 cache.put(id, team);
             }
@@ -50,6 +50,12 @@ public class TeamController {
             team = pair.getVal();
         }
         return team;
+    }
+    
+    int doSomething() throws InterruptedException {
+    	int s = 0;
+    	Thread.sleep(1000);
+    	return s;
     }
     
     @PostConstruct
