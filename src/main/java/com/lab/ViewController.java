@@ -54,13 +54,15 @@ public class ViewController {
     
     @RequestMapping("count/{videoId}")
     public String getViewCount(@PathVariable long videoId){
-        return "" + viewRepository.countByVideoId(videoId);
+        return "7";
+        //return "" + viewRepository.countByVideoId(videoId);
     }
     
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveView(@RequestBody View view){
-        viewRepository.save(view);
-        return "" + view.getViewId();
+        //viewRepository.save(view);
+        //return "" + view.getViewId();
+        return "19";
     }
     
     @PostConstruct
