@@ -1,5 +1,6 @@
 package com.lab;
 
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
@@ -7,16 +8,18 @@ import javax.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.codahale.metrics.ConsoleReporter;
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Slf4jReporter;
+import com.codahale.metrics.graphite.Graphite;
+import com.codahale.metrics.graphite.GraphiteReporter;
 import com.lab.models.View;
 import com.lab.repositories.ViewRepository;
 
@@ -30,6 +33,12 @@ public class ViewController {
     
     @Autowired
     ViewRepository viewRepository;
+    
+    @Value("${graphite.hostname}")
+    private String graphiteHostName;
+    
+    @Value("${graphite.port}")
+    private int graphitePort;
     
     @RequestMapping("count/{videoId}")
     public String getViewCount(@PathVariable long videoId) {
@@ -48,11 +57,14 @@ public class ViewController {
     public void init() {
         metrics = new MetricRegistry();
         
-        final Slf4jReporter reporter = Slf4jReporter.forRegistry(metrics)
-                .outputTo(LoggerFactory.getLogger(ViewController.class))
-                .convertRatesTo(TimeUnit.SECONDS)
-                .convertDurationsTo(TimeUnit.MILLISECONDS)
-                .build();
+        final Graphite graphite = new Graphite(new InetSocketAddress(graphiteHostName, graphitePort));
+        final GraphiteReporter reporter = GraphiteReporter.forRegistry(metrics)
+                                                          .prefixedWith("web1.example.com")
+                                                          .convertRatesTo(TimeUnit.SECONDS)
+                                                          .convertDurationsTo(TimeUnit.MILLISECONDS)
+                                                          .filter(MetricFilter.ALL)
+                                                          .build(graphite);
         reporter.start(1, TimeUnit.SECONDS);
+        
     }
 }
