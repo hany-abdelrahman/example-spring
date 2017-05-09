@@ -3,9 +3,9 @@ package com.lab.models;
 import java.io.Serializable;
 import java.util.Date;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+//import javax.persistence.Entity;
+//import javax.persistence.GeneratedValue;
+//import javax.persistence.Id;
 
 /**
  * A Data Structure that represents a view of a video
@@ -13,13 +13,13 @@ import javax.persistence.Id;
  * @author taaabha1
  *
  */
-@Entity
+//@Entity
 public class View implements Serializable {
     
     private static final long serialVersionUID = 1947087677205353674L;
     
-    @GeneratedValue
-    @Id
+//    @GeneratedValue
+//    @Id
     long viewId;
     long videoId;
     long userId;

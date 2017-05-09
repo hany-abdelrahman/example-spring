@@ -13,8 +13,8 @@ import com.lab.repositories.ViewRepository;
 @SpringBootApplication
 public class LabFirstApplication extends SpringBootServletInitializer {
 
-    @Autowired
-    ViewRepository viewRepository;
+//    @Autowired
+//    ViewRepository viewRepository;
     
     public static void main(String[] args) {
         SpringApplication.run(LabFirstApplication.class, args);
