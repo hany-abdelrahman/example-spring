@@ -1,9 +1,11 @@
 package com.lab;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 
@@ -21,7 +23,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.graphite.Graphite;
+import com.codahale.metrics.graphite.GraphiteReporter;
 import com.lab.models.View;
 
 @RestController
@@ -133,16 +138,16 @@ public class ViewController {
     
     @PostConstruct
     public void init() {
-//        metrics = new MetricRegistry();
-//        
-//        final Graphite graphite = new Graphite(new InetSocketAddress(graphiteHostName, graphitePort));
-//        final GraphiteReporter reporter = GraphiteReporter.forRegistry(metrics)
-//                                                          .prefixedWith("web1.example.com")
-//                                                          .convertRatesTo(TimeUnit.SECONDS)
-//                                                          .convertDurationsTo(TimeUnit.MILLISECONDS)
-//                                                          .filter(MetricFilter.ALL)
-//                                                          .build(graphite);
-//        reporter.start(1, TimeUnit.SECONDS);
+        metrics = new MetricRegistry();
+        
+        final Graphite graphite = new Graphite(new InetSocketAddress(graphiteHostName, graphitePort));
+        final GraphiteReporter reporter = GraphiteReporter.forRegistry(metrics)
+                                                          .prefixedWith("web1.example.com")
+                                                          .convertRatesTo(TimeUnit.SECONDS)
+                                                          .convertDurationsTo(TimeUnit.MILLISECONDS)
+                                                          .filter(MetricFilter.ALL)
+                                                          .build(graphite);
+        reporter.start(1, TimeUnit.SECONDS);
         
         conf = new Configuration();
         conf.set("fs.defaultFS", hdfsUri);
