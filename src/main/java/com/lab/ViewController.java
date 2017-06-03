@@ -36,7 +36,7 @@ import com.lab.models.View;
 public class ViewController {
 
     private static final String GET_VIEWS_COUNT_METRIC = "get-views-metric";
-    private static final int BATCH_SIZE = 1000;
+    private static final int BATCH_SIZE = 1;
 
     private static final Logger logger = LoggerFactory.getLogger(ViewController.class);
     private MetricRegistry metrics;
