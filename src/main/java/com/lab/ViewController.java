@@ -12,18 +12,14 @@ import javax.annotation.PostConstruct;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.tracing.SpanReceiverHost;
 import org.htrace.Sampler;
 import org.htrace.Trace;
 import org.htrace.TraceScope;
-import org.htrace.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,17 +31,14 @@ import com.lab.models.View;
 
 @RestController
 public class ViewController {
-    
-    @Autowired Tracer tracer;
-
 
     private static final String GET_VIEWS_COUNT_METRIC = "get-views-metric";
     private static final int BATCH_SIZE = 1;
 
     private static final Logger logger = LoggerFactory.getLogger(ViewController.class);
     private MetricRegistry metrics;
-    //private Configuration conf;
-
+    
+    private FileSystem fs;
     private List<View> buffer;
 
     // @Autowired
@@ -76,15 +69,14 @@ public class ViewController {
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveRequest(@RequestBody View view) {
         logger.info("Received view request");
-        Configuration conf = new Configuration();
-        conf.setQuietMode(false);
         SpanReceiverHost.getInstance(new HdfsConfiguration());
         buffer.add(view);
         TraceScope ts = null;
         if (buffer.size() >= BATCH_SIZE) {
             try {
                 ts = Trace.startSpan("HDFS", Sampler.ALWAYS);
-                flushBuffer(conf);
+                flushBuffer();
+                ts.getSpan().addTimelineAnnotation("Annot");
             } 
             catch (Exception e) {
                 logger.error(e.getMessage());
@@ -97,13 +89,10 @@ public class ViewController {
         return "SUCCESS";
     }
     
-    private boolean flushBuffer(Configuration conf) throws IOException {
+    private boolean flushBuffer() throws IOException {
         synchronized (buffer) {
             FSDataOutputStream outputStream = null;
-            FileSystem fs = null;
             try {
-                fs = FileSystem.get(URI.create(hdfsUri), conf);
-                fs.setConf(conf);
                 
                 String path = "/home/db/";
                 String fileName = "PART-001.csv";
@@ -136,7 +125,6 @@ public class ViewController {
             } 
             finally {
                 outputStream.close();
-                fs.close();
                 buffer.clear();
             }
         }
@@ -166,7 +154,7 @@ public class ViewController {
     }
 
     @PostConstruct
-    public void init() {
+    public void init() throws IOException {
         // metrics = new MetricRegistry();
         //
         // final Graphite graphite = new Graphite(new
@@ -185,9 +173,13 @@ public class ViewController {
 //        conf.set("fs.hdfs.impl", DistributedFileSystem.class.getName());
 //        conf.set("fs.file.impl", LocalFileSystem.class.getName());
 //        conf.set("dfs.replication", "1");
+        Configuration conf = new Configuration();
+        conf.setQuietMode(false);
+        fs = FileSystem.get(URI.create(hdfsUri), conf);
+
         System.setProperty("HADOOP_USER_NAME", "hdfs");
         System.setProperty("hadoop.home.dir", "/");
         
-        buffer = Collections.synchronizedList(new ArrayList<>(BATCH_SIZE));
+        buffer = Collections.synchronizedList(new ArrayList<View>(BATCH_SIZE));
     }
 }
