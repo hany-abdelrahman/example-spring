@@ -17,6 +17,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,7 +36,7 @@ import com.lab.models.View;
 public class ViewController {
 
     private static final String GET_VIEWS_COUNT_METRIC = "get-views-metric";
-    private static final int BATCH_SIZE = 1;
+    private static final int BATCH_SIZE = 1000;
 
     private static final Logger logger = LoggerFactory.getLogger(ViewController.class);
     private MetricRegistry metrics;
@@ -70,6 +71,7 @@ public class ViewController {
 
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveRequest(@RequestBody View view) {
+        logger.info("Received view request");
         buffer.add(view);
         
         if (buffer.size() >= BATCH_SIZE) {
