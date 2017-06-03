@@ -1,13 +1,11 @@
 package com.lab;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 
@@ -17,35 +15,36 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
-import org.apache.hadoop.tracing.SpanReceiverHost;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
+import org.apache.hadoop.tracing.SpanReceiverHost;
 import org.htrace.Sampler;
 import org.htrace.Trace;
 import org.htrace.TraceScope;
-
+import org.htrace.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.graphite.Graphite;
-import com.codahale.metrics.graphite.GraphiteReporter;
 import com.lab.models.View;
 
 @RestController
 public class ViewController {
+    
+    @Autowired Tracer tracer;
+
 
     private static final String GET_VIEWS_COUNT_METRIC = "get-views-metric";
     private static final int BATCH_SIZE = 1;
 
     private static final Logger logger = LoggerFactory.getLogger(ViewController.class);
     private MetricRegistry metrics;
-    private Configuration conf;
+    //private Configuration conf;
 
     private List<View> buffer;
 
@@ -77,31 +76,34 @@ public class ViewController {
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveRequest(@RequestBody View view) {
         logger.info("Received view request");
+        Configuration conf = new Configuration();
+        conf.setQuietMode(false);
+        SpanReceiverHost.getInstance(new HdfsConfiguration());
         buffer.add(view);
-        
+        TraceScope ts = null;
         if (buffer.size() >= BATCH_SIZE) {
             try {
-                flushBuffer();
+                ts = Trace.startSpan("HDFS", Sampler.ALWAYS);
+                flushBuffer(conf);
             } 
             catch (Exception e) {
                 logger.error(e.getMessage());
             } 
             finally {
                 buffer.clear();
+                ts.close();
             }
         }
         return "SUCCESS";
     }
     
-    private boolean flushBuffer() throws IOException {
-        SpanReceiverHost.getInstance(new HdfsConfiguration());
+    private boolean flushBuffer(Configuration conf) throws IOException {
         synchronized (buffer) {
             FSDataOutputStream outputStream = null;
             FileSystem fs = null;
-            TraceScope ts = null;
             try {
-                ts = Trace.startSpan("HDFS", Sampler.ALWAYS);
                 fs = FileSystem.get(URI.create(hdfsUri), conf);
+                fs.setConf(conf);
                 
                 String path = "/home/db/";
                 String fileName = "PART-001.csv";
@@ -136,7 +138,6 @@ public class ViewController {
                 outputStream.close();
                 fs.close();
                 buffer.clear();
-                ts.close();
             }
         }
         return true;
@@ -179,11 +180,11 @@ public class ViewController {
         // .build(graphite);
         // reporter.start(1, TimeUnit.SECONDS);
         
-        conf = new Configuration();
-        conf.set("fs.defaultFS", hdfsUri);
-        conf.set("fs.hdfs.impl", DistributedFileSystem.class.getName());
-        conf.set("fs.file.impl", LocalFileSystem.class.getName());
-        conf.set("dfs.replication", "1");
+//        conf = new Configuration();
+//        conf.set("fs.defaultFS", hdfsUri);
+//        conf.set("fs.hdfs.impl", DistributedFileSystem.class.getName());
+//        conf.set("fs.file.impl", LocalFileSystem.class.getName());
+//        conf.set("dfs.replication", "1");
         System.setProperty("HADOOP_USER_NAME", "hdfs");
         System.setProperty("hadoop.home.dir", "/");
         
