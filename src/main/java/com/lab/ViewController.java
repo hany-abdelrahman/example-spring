@@ -17,7 +17,12 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
-import org.mortbay.log.Log;
+import org.apache.hadoop.tracing.SpanReceiverHost;
+import org.apache.hadoop.hdfs.HdfsConfiguration;
+import org.htrace.Sampler;
+import org.htrace.Trace;
+import org.htrace.TraceScope;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -89,10 +94,13 @@ public class ViewController {
     }
     
     private boolean flushBuffer() throws IOException {
+        SpanReceiverHost.getInstance(new HdfsConfiguration());
         synchronized (buffer) {
             FSDataOutputStream outputStream = null;
             FileSystem fs = null;
+            TraceScope ts = null;
             try {
+                ts = Trace.startSpan("HDFS", Sampler.ALWAYS);
                 fs = FileSystem.get(URI.create(hdfsUri), conf);
                 
                 String path = "/home/db/";
@@ -128,6 +136,7 @@ public class ViewController {
                 outputStream.close();
                 fs.close();
                 buffer.clear();
+                ts.close();
             }
         }
         return true;
