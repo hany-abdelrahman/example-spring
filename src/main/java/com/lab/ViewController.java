@@ -17,9 +17,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.tracing.SpanReceiverHost;
-import org.htrace.Sampler;
 import org.htrace.Trace;
 import org.htrace.TraceScope;
+import org.htrace.impl.ProbabilitySampler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -68,16 +68,16 @@ public class ViewController {
         buffer.add(view);
         TraceScope ts = null;
         try {
-            ts = Trace.startSpan("HDFS", Sampler.ALWAYS);
+            ts = Trace.startSpan("HDFS", new ProbabilitySampler(0.01));
             if (buffer.size() >= BATCH_SIZE) {
                 flushBuffer();
+                buffer.clear();
             } 
         }
         catch (Exception e) {
             logger.error(e.getMessage());
         } 
         finally {
-            buffer.clear();
             ts.close();
         }
         return "SUCCESS";
@@ -86,8 +86,10 @@ public class ViewController {
     private boolean flushBuffer() throws IOException {
         synchronized (buffer) {
             FSDataOutputStream outputStream = null;
+            TraceScope ts = null;
             try {
-                
+                ts = Trace.startSpan("HDFS", new ProbabilitySampler(0.7));
+
                 String path = "/home/db/";
                 String fileName = "PART-001.csv";
                 
@@ -120,6 +122,7 @@ public class ViewController {
             finally {
                 outputStream.close();
                 buffer.clear();
+                ts.close();
             }
         }
         return true;
