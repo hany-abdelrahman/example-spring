@@ -1,11 +1,13 @@
 package com.lab;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 
@@ -26,24 +28,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.graphite.Graphite;
+import com.codahale.metrics.graphite.GraphiteReporter;
 import com.lab.models.View;
 
 @RestController
 public class ViewController {
 
     private static final String GET_VIEWS_COUNT_METRIC = "get-views-metric";
-    private static final int BATCH_SIZE = 1;
-
-    private static final Logger logger = LoggerFactory.getLogger(ViewController.class);
-    private MetricRegistry metrics;
     
-    private FileSystem fs;
-    private List<View> buffer;
-
-    // @Autowired
-    // ViewRepository viewRepository;
-
+    @Value("${hdfs.batch.size}")
+    private int BATCH_SIZE;
+    
     @Value("${graphite.hostname}")
     private String graphiteHostName;
 
@@ -52,39 +51,34 @@ public class ViewController {
 
     @Value("${hdfs.uri}")
     private String hdfsUri;
-    //
-    // @RequestMapping("count/{videoId}")
-    // public String getViewCount(@PathVariable long videoId) {
-    // Meter meter = metrics.meter(GET_VIEWS_COUNT_METRIC);
-    // meter.mark();
-    // return "" + viewRepository.countByVideoId(videoId);
-    // }
-    //
-    // @RequestMapping(value = "view", method = RequestMethod.POST)
-    // public String saveView(@RequestBody View view){
-    // viewRepository.save(view);
-    // return "" + view.getViewId();
-    // }
-
+    
+    private static final Logger logger = LoggerFactory.getLogger(ViewController.class);
+    private MetricRegistry metrics;
+    
+    private FileSystem fs;
+    private List<View> buffer;
+    
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveRequest(@RequestBody View view) {
+        Meter meter = metrics.meter(GET_VIEWS_COUNT_METRIC);
+        meter.mark();
+        
         logger.info("Received view request");
         SpanReceiverHost.getInstance(new HdfsConfiguration());
         buffer.add(view);
         TraceScope ts = null;
-        if (buffer.size() >= BATCH_SIZE) {
-            try {
-                ts = Trace.startSpan("HDFS", Sampler.ALWAYS);
+        try {
+            ts = Trace.startSpan("HDFS", Sampler.ALWAYS);
+            if (buffer.size() >= BATCH_SIZE) {
                 flushBuffer();
-                ts.getSpan().addTimelineAnnotation("Annot");
             } 
-            catch (Exception e) {
-                logger.error(e.getMessage());
-            } 
-            finally {
-                buffer.clear();
-                ts.close();
-            }
+        }
+        catch (Exception e) {
+            logger.error(e.getMessage());
+        } 
+        finally {
+            buffer.clear();
+            ts.close();
         }
         return "SUCCESS";
     }
@@ -100,12 +94,12 @@ public class ViewController {
                 Path newFolderPath = new Path(path);
                 
                 if (!fs.exists(newFolderPath)) {
-                    // Create new Directory
                     fs.mkdirs(newFolderPath);
                 }
-                // ==== Write file
+                
                 // Create a path
                 Path hdfswritepath = new Path(newFolderPath + "/" + fileName);
+                
                 // Init output stream
                 if (!fs.exists(hdfswritepath)) {
                     outputStream = fs.create(hdfswritepath);
@@ -155,24 +149,19 @@ public class ViewController {
 
     @PostConstruct
     public void init() throws IOException {
-        // metrics = new MetricRegistry();
-        //
-        // final Graphite graphite = new Graphite(new
-        // InetSocketAddress(graphiteHostName, graphitePort));
-        // final GraphiteReporter reporter =
-        // GraphiteReporter.forRegistry(metrics)
-        // .prefixedWith("web1.example.com")
-        // .convertRatesTo(TimeUnit.SECONDS)
-        // .convertDurationsTo(TimeUnit.MILLISECONDS)
-        // .filter(MetricFilter.ALL)
-        // .build(graphite);
-        // reporter.start(1, TimeUnit.SECONDS);
+         metrics = new MetricRegistry();
         
-//        conf = new Configuration();
-//        conf.set("fs.defaultFS", hdfsUri);
-//        conf.set("fs.hdfs.impl", DistributedFileSystem.class.getName());
-//        conf.set("fs.file.impl", LocalFileSystem.class.getName());
-//        conf.set("dfs.replication", "1");
+         final Graphite graphite = new Graphite(new
+         InetSocketAddress(graphiteHostName, graphitePort));
+         final GraphiteReporter reporter =
+         GraphiteReporter.forRegistry(metrics)
+             .prefixedWith("Metrics")
+             .convertRatesTo(TimeUnit.SECONDS)
+             .convertDurationsTo(TimeUnit.MILLISECONDS)
+             .filter(MetricFilter.ALL)
+             .build(graphite);
+         reporter.start(1, TimeUnit.SECONDS);
+        
         Configuration conf = new Configuration();
         conf.setQuietMode(false);
         fs = FileSystem.get(URI.create(hdfsUri), conf);
