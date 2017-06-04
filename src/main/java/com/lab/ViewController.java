@@ -68,7 +68,7 @@ public class ViewController {
         buffer.add(view);
         TraceScope ts = null;
         try {
-            ts = Trace.startSpan("HDFS", new ProbabilitySampler(0.01));
+//            ts = Trace.startSpan("HDFS", new ProbabilitySampler(0.00));
             if (buffer.size() >= BATCH_SIZE) {
                 flushBuffer();
                 buffer.clear();
@@ -78,7 +78,7 @@ public class ViewController {
             logger.error(e.getMessage());
         } 
         finally {
-            ts.close();
+//            ts.close();
         }
         return "SUCCESS";
     }
@@ -88,7 +88,7 @@ public class ViewController {
             FSDataOutputStream outputStream = null;
             TraceScope ts = null;
             try {
-                ts = Trace.startSpan("HDFS", new ProbabilitySampler(0.7));
+//                ts = Trace.startSpan("HDFS", new ProbabilitySampler(0.7));
 
                 String path = "/home/db/";
                 String fileName = "PART-001.csv";
@@ -122,7 +122,7 @@ public class ViewController {
             finally {
                 outputStream.close();
                 buffer.clear();
-                ts.close();
+//                ts.close();
             }
         }
         return true;
