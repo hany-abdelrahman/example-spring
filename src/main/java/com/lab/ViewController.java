@@ -17,6 +17,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.tracing.SpanReceiverHost;
+import org.htrace.Sampler;
 import org.htrace.Trace;
 import org.htrace.TraceScope;
 import org.htrace.impl.ProbabilitySampler;
@@ -39,10 +40,10 @@ import com.lab.models.View;
 public class ViewController {
 
     private static final String GET_VIEWS_COUNT_METRIC = "get-views-metric";
-    
+
     @Value("${hdfs.batch.size}")
     private int BATCH_SIZE;
-    
+
     @Value("${graphite.hostname}")
     private String graphiteHostName;
 
@@ -51,78 +52,82 @@ public class ViewController {
 
     @Value("${hdfs.uri}")
     private String hdfsUri;
-    
+
     private static final Logger logger = LoggerFactory.getLogger(ViewController.class);
     private MetricRegistry metrics;
-    
+
     private FileSystem fs;
     private List<View> buffer;
-    
+
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveRequest(@RequestBody View view) {
         Meter meter = metrics.meter(GET_VIEWS_COUNT_METRIC);
         meter.mark();
-        
+
         logger.info("Received view request");
         SpanReceiverHost.getInstance(new HdfsConfiguration());
         buffer.add(view);
         TraceScope ts = null;
         try {
-//            ts = Trace.startSpan("HDFS", new ProbabilitySampler(0.00));
+            ts = Trace.startSpan("Backend Received Request", new ProbabilitySampler(0.001));
             if (buffer.size() >= BATCH_SIZE) {
                 flushBuffer();
                 buffer.clear();
-            } 
+            }
         }
         catch (Exception e) {
             logger.error(e.getMessage());
-        } 
+        }
         finally {
-//            ts.close();
+            if (ts != null) {
+                ts.close();
+            }
         }
         return "SUCCESS";
     }
-    
+
     private boolean flushBuffer() throws IOException {
         synchronized (buffer) {
             FSDataOutputStream outputStream = null;
             TraceScope ts = null;
             try {
-//                ts = Trace.startSpan("HDFS", new ProbabilitySampler(0.7));
+                ts = Trace.startSpan("Write to HDFS", Sampler.ALWAYS);
 
                 String path = "/home/db/";
                 String fileName = "PART-001.csv";
-                
+
                 Path newFolderPath = new Path(path);
-                
+
                 if (!fs.exists(newFolderPath)) {
                     fs.mkdirs(newFolderPath);
                 }
-                
+
                 // Create a path
                 Path hdfswritepath = new Path(newFolderPath + "/" + fileName);
-                
+
                 // Init output stream
                 if (!fs.exists(hdfswritepath)) {
                     outputStream = fs.create(hdfswritepath);
                 } else {
                     outputStream = fs.append(hdfswritepath);
                 }
-                
+
                 for (View view : buffer) {
                     outputStream.writeBytes(getViewAsString(view));
                 }
-                
+
                 logger.info("End Write file into hdfs");
-            } 
+            }
             catch (Exception e) {
                 logger.info(e.getMessage());
                 return false;
-            } 
+            }
             finally {
                 outputStream.close();
                 buffer.clear();
-//                ts.close();
+                if (ts != null) {
+                    ts.close();
+                }
             }
         }
         return true;
@@ -133,7 +138,7 @@ public class ViewController {
         final String LINE_TERMINATOR = "\n";
         String id = UUID.randomUUID().toString();
         StringBuilder sb = new StringBuilder();
-        
+
         sb.append(id);
         sb.append(SEPARATOR);
         sb.append(view.getVideoId());
@@ -152,8 +157,8 @@ public class ViewController {
 
     @PostConstruct
     public void init() throws IOException {
-         metrics = new MetricRegistry();
-        
+        metrics = new MetricRegistry();
+
          final Graphite graphite = new Graphite(new
          InetSocketAddress(graphiteHostName, graphitePort));
          final GraphiteReporter reporter =
@@ -164,14 +169,14 @@ public class ViewController {
              .filter(MetricFilter.ALL)
              .build(graphite);
          reporter.start(1, TimeUnit.SECONDS);
-        
+
         Configuration conf = new Configuration();
         conf.setQuietMode(false);
         fs = FileSystem.get(URI.create(hdfsUri), conf);
 
         System.setProperty("HADOOP_USER_NAME", "hdfs");
         System.setProperty("hadoop.home.dir", "/");
-        
+
         buffer = Collections.synchronizedList(new ArrayList<View>(BATCH_SIZE));
     }
 }
