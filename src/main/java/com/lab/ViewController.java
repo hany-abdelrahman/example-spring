@@ -39,7 +39,8 @@ import com.lab.models.View;
 @RestController
 public class ViewController {
 
-    private static final String GET_VIEWS_COUNT_METRIC = "get-views-metric";
+    @Value("${graphite.metricname")
+    private String metricName;
 
     @Value("${hdfs.batch.size}")
     private int BATCH_SIZE;
@@ -61,7 +62,7 @@ public class ViewController {
 
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveRequest(@RequestBody View view) {
-        Meter meter = metrics.meter(GET_VIEWS_COUNT_METRIC);
+        Meter meter = metrics.meter(metricName);
         meter.mark();
 
         logger.info("Received view request");
