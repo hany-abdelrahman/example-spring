@@ -22,7 +22,6 @@ import org.htrace.Sampler;
 import org.htrace.Trace;
 import org.htrace.TraceScope;
 import org.htrace.impl.ProbabilitySampler;
-import org.jboss.logging.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -93,49 +92,52 @@ public class ViewController {
     }
 
     private boolean flushBuffer() throws IOException {
+        List<View> bufferCopy = null;
         synchronized (buffer) {
-            FSDataOutputStream outputStream = null;
-            TraceScope ts = null;
-            try {
-                ts = Trace.startSpan("Write to HDFS", Sampler.ALWAYS);
-                String part_name = String.format("%03d", INSTANCE_ID);
-                String path = "/home/db/";
-                String fileName = MessageFormat.format("PART-{0}.csv", part_name);
-                Path newFolderPath = new Path(path);
+            bufferCopy = new ArrayList<>(buffer);
+            buffer.clear();
+        }
+        FSDataOutputStream outputStream = null;
+        TraceScope ts = null;
+        try {
+            ts = Trace.startSpan("Write to HDFS", Sampler.ALWAYS);
+            String part_name = String.format("%03d", INSTANCE_ID);
+            String path = "/home/db/";
+            String fileName = MessageFormat.format("PART-{0}.csv", part_name);
+            Path newFolderPath = new Path(path);
 
-                if (!fs.exists(newFolderPath)) {
-                    fs.mkdirs(newFolderPath);
-                }
-
-                // Create a path
-                Path hdfswritepath = new Path(newFolderPath + "/" + fileName);
-
-                // Init output stream
-                if (!fs.exists(hdfswritepath)) {
-                    outputStream = fs.create(hdfswritepath);
-                } else {
-                    outputStream = fs.append(hdfswritepath);
-                }
-
-                for (View view : buffer) {
-                    outputStream.writeBytes(getViewAsString(view));
-                }
-
-                logger.info("End Write file into hdfs");
+            if (!fs.exists(newFolderPath)) {
+                fs.mkdirs(newFolderPath);
             }
-            catch (Exception e) {
-                logger.info(e.getMessage());
-                return false;
+
+            // Create a path
+            Path hdfswritepath = new Path(newFolderPath + "/" + fileName);
+
+            // Init output stream
+            if (!fs.exists(hdfswritepath)) {
+                outputStream = fs.create(hdfswritepath);
+            } else {
+                outputStream = fs.append(hdfswritepath);
             }
-            finally {
-                outputStream.close();
-                buffer.clear();
-                if (ts != null) {
-                    ts.close();
-                }
+
+            for (View view : bufferCopy) {
+                outputStream.writeBytes(getViewAsString(view));
+            }
+
+            logger.info("End Write file into hdfs");
+        }
+        catch (Exception e) {
+            logger.info(e.getMessage());
+            return false;
+        }
+        finally {
+            outputStream.close();
+            bufferCopy.clear();
+            if (ts != null) {
+                ts.close();
             }
         }
-        return true;
+    return true;
     }
 
     private String getViewAsString(View view) {
