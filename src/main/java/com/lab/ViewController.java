@@ -77,7 +77,6 @@ public class ViewController {
             ts = Trace.startSpan("Backend Received Request", new ProbabilitySampler(0.001));
             if (buffer.size() >= BATCH_SIZE) {
                 flushBuffer();
-                buffer.clear();
             }
         }
         catch (Exception e) {
