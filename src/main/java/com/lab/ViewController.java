@@ -3,6 +3,7 @@ package com.lab;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,7 @@ import org.htrace.Sampler;
 import org.htrace.Trace;
 import org.htrace.TraceScope;
 import org.htrace.impl.ProbabilitySampler;
+import org.jboss.logging.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +41,7 @@ import com.lab.models.View;
 @RestController
 public class ViewController {
 
-    @Value("${graphite.metricname")
+    @Value("${graphite.metricname}")
     private String metricName;
 
     @Value("${hdfs.batch.size}")
@@ -53,6 +55,9 @@ public class ViewController {
 
     @Value("${hdfs.uri}")
     private String hdfsUri;
+
+    @Value("${instance.id}")
+    private int INSTANCE_ID;
 
     private static final Logger logger = LoggerFactory.getLogger(ViewController.class);
     private MetricRegistry metrics;
@@ -93,10 +98,9 @@ public class ViewController {
             TraceScope ts = null;
             try {
                 ts = Trace.startSpan("Write to HDFS", Sampler.ALWAYS);
-
+                String part_name = String.format("%03d", INSTANCE_ID);
                 String path = "/home/db/";
-                String fileName = "PART-001.csv";
-
+                String fileName = MessageFormat.format("PART-{0}.csv", part_name);
                 Path newFolderPath = new Path(path);
 
                 if (!fs.exists(newFolderPath)) {
