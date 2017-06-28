@@ -2,28 +2,28 @@ package com.lab;
 
 import javax.annotation.PostConstruct;
 
+import org.apache.commons.configuration.Configuration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.support.SpringBootServletInitializer;
 
 @SpringBootApplication
-public class LabFirstApplication extends SpringBootServletInitializer {
+public class BackendApplication extends SpringBootServletInitializer {
 
-//    @Autowired
-//    ViewRepository viewRepository;
-    
+
     public static void main(String[] args) {
-        SpringApplication.run(LabFirstApplication.class, args);
+        SpringApplication.run(BackendApplication.class, args);
     }
-    
+
     @Override
     protected SpringApplicationBuilder configure(SpringApplicationBuilder builder) {
-        return builder.sources(LabFirstApplication.class);
+        return builder.sources(BackendApplication.class);
     }
-    
+
     @PostConstruct
     public void init() {
-        // Empty
+
     }
+
 }

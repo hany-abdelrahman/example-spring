@@ -24,25 +24,35 @@
     <java.version>1.7</java.version>
     <docker.image.prefix>spring</docker.image.prefix>
     <hadoop.version>2.6.0</hadoop.version>
+    <hbase.version>0.98.4.2.2.9.0-3393-hadoop2</hbase.version>
+    <guava.version>16.0</guava.version>
   </properties>
 
+  <repositories>
+      <repository>
+          <id>hortonworks</id>
+          <name>Public online Restlet repository</name>
+          <url>https://repo.spring.io/simple/hortonworks/</url>
+      </repository>
+      <repository>
+          <id>spring-io</id>
+          <name>Public online Restlet repository</name>
+          <url>https://repo.spring.io/</url>
+      </repository>
+      <repository>
+          <id>spring-io-releae</id>
+          <name>Public online Restlet repository</name>
+          <url>http://repo.spring.io/plugins-release/</url>
+      </repository>
+  </repositories>
+  
   <dependencies>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
-<!--     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-jpa</artifactId>
-    </dependency>
-
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-jdbc</artifactId>
-    </dependency>
-
- -->    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-thymeleaf</artifactId>
     </dependency>
@@ -93,17 +103,6 @@
         <version>3.2.2</version><!--$NO-MVN-MAN-VER$-->
     </dependency>
     
-<!--     <dependency>
-        <groupId>org.springframework.cloud</groupId>
-        <artifactId>spring-cloud-sleuth-zipkin</artifactId>
-    </dependency>
-	 
-    <dependency>
-        <groupId>org.springframework.cloud</groupId>
-        <artifactId>spring-cloud-starter-sleuth</artifactId>
-    </dependency>
-	  -->
-
     <!-- Hadoop -->
     <dependency>
         <groupId>org.apache.hadoop</groupId>
@@ -123,21 +122,21 @@
                 <artifactId>servlet-api</artifactId>
             </exclusion>
           </exclusions>
-      </dependency>
-      
-  </dependencies>
+    </dependency>
 
-<!--   <dependencyManagement>
-      <dependencies>
-          <dependency>
-              <groupId>org.springframework.cloud</groupId>
-              <artifactId>spring-cloud-dependencies</artifactId>
-              <version>Camden.SR5</version>
-              <type>pom</type>
-              <scope>import</scope>
-          </dependency>
-      </dependencies>
-  </dependencyManagement> -->
+     <dependency>
+         <groupId>org.apache.hbase</groupId>
+         <artifactId>hbase-client</artifactId>
+         <version>${hbase.version}</version>
+     </dependency>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version><!--$NO-MVN-MAN-VER$-->
+    </dependency>
+
+  </dependencies>
 
   <build>
     <plugins>

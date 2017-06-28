@@ -16,6 +16,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hdfs.HdfsConfiguration;
 import org.apache.hadoop.tracing.SpanReceiverHost;
 import org.htrace.Sampler;
@@ -39,6 +44,7 @@ import com.lab.models.View;
 
 @RestController
 public class ViewController {
+    private static final String TOTAL_VIEWS_TABLE = "views_total_count";
 
     @Value("${graphite.metricname}")
     private String metricName;
@@ -62,7 +68,26 @@ public class ViewController {
     private MetricRegistry metrics;
 
     private FileSystem fs;
+    private HTable viewsHTable;
+
     private List<View> buffer;
+
+    @RequestMapping(value = "count", method = RequestMethod.GET)
+    public int getViewsCount(int itemId) {
+        try {
+            Get get = new Get(Bytes.toBytes(Integer.toString(itemId)));
+            get.addColumn(Bytes.toBytes("item"), Bytes.toBytes("views_count"));
+            Result result = viewsHTable.get(get);
+            byte[] count = result.getValue(Bytes.toBytes("item"), Bytes.toBytes("views_count"));
+            if (count != null) {
+                return Bytes.toInt(count);
+            }
+        }
+        catch (Exception e) {
+
+        }
+        return -1;
+    }
 
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveRequest(@RequestBody View view) {
@@ -179,6 +204,7 @@ public class ViewController {
         Configuration conf = new Configuration();
         conf.setQuietMode(false);
         fs = FileSystem.get(URI.create(hdfsUri), conf);
+        viewsHTable = new HTable(conf, TOTAL_VIEWS_TABLE);
 
         System.setProperty("HADOOP_USER_NAME", "hdfs");
         System.setProperty("hadoop.home.dir", "/");
