@@ -73,25 +73,28 @@ public class ViewController {
     private List<View> buffer;
 
     @RequestMapping(value = "count", method = RequestMethod.GET)
-    public int getViewsCount(int itemId) {
+    public String getViewsCount(int itemId) {
+        Meter meter = metrics.meter(metricName + "-read");
+        meter.mark();
+
         try {
-            Get get = new Get(Bytes.toBytes(Integer.toString(itemId)));
+            Get get = new Get(Bytes.toBytes(itemId));
             get.addColumn(Bytes.toBytes("item"), Bytes.toBytes("views_count"));
             Result result = viewsHTable.get(get);
             byte[] count = result.getValue(Bytes.toBytes("item"), Bytes.toBytes("views_count"));
             if (count != null) {
-                return Bytes.toInt(count);
+                return Bytes.toString(count);
             }
         }
         catch (Exception e) {
 
         }
-        return -1;
+        return "-1";
     }
 
     @RequestMapping(value = "view", method = RequestMethod.POST)
     public String saveRequest(@RequestBody View view) {
-        Meter meter = metrics.meter(metricName);
+        Meter meter = metrics.meter(metricName + "-write");
         meter.mark();
 
         logger.info("Received view request");
@@ -204,7 +207,7 @@ public class ViewController {
         Configuration conf = new Configuration();
         conf.setQuietMode(false);
         fs = FileSystem.get(URI.create(hdfsUri), conf);
-        viewsHTable = new HTable(conf, TOTAL_VIEWS_TABLE);
+        viewsHTable = new HTable(HBaseConfiguration.create(), TOTAL_VIEWS_TABLE);
 
         System.setProperty("HADOOP_USER_NAME", "hdfs");
         System.setProperty("hadoop.home.dir", "/");
