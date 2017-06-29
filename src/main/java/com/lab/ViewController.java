@@ -73,7 +73,7 @@ public class ViewController {
     private List<View> buffer;
 
     @RequestMapping(value = "count", method = RequestMethod.GET)
-    public String getViewsCount(int itemId) {
+    public String getViewsCount(String itemId) {
         Meter meter = metrics.meter(metricName + "-read");
         meter.mark();
 
